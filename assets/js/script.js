@@ -535,11 +535,11 @@ document.addEventListener('DOMContentLoaded', () => {
     introContent.style.transform = 'none';
 
     const entranceSequence = [
-      { element: introLines[0], delay: 0, duration: 500 },
-      { element: introLines[1], delay: 350, duration: 500 },
-      { element: introRole, delay: 750, duration: 400 }
-    ].map(({ element, delay, duration }) => element.animate([
-      { opacity: 0, transform: 'translateY(1rem)' },
+      { element: introLines[0], delay: 0, duration: 500, fromY: '1rem' },
+      { element: introLines[1], delay: 350, duration: 500, fromY: '1rem' },
+      { element: introRole, delay: 750, duration: 400, fromY: '8px' }
+    ].map(({ element, delay, duration, fromY }) => element.animate([
+      { opacity: 0, transform: `translateY(${fromY})` },
       { opacity: 1, transform: 'translateY(0)' }
     ], {
       delay,
