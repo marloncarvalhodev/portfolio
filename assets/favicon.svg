@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --border: rgba(255, 255, 255, 0.16);
+      --stroke: #ffffff;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f8f7f4;
+        --border: rgba(12, 12, 14, 0.14);
+        --stroke: #0c0c0e;
+      }
+    }
+    .bg {
+      fill: var(--bg);
+      stroke: var(--border);
+      stroke-width: 1;
+    }
+    .monogram {
+      stroke: var(--stroke);
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+  </style>
+  <rect class="bg" x="0.5" y="0.5" width="31" height="31" rx="6" />
+  <path class="monogram" d="M 8 23 V 9.5 L 16 17 L 24 9.5 V 23" />
+</svg>
+

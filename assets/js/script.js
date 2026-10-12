@@ -7,14 +7,11 @@ if (introShouldPlay) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const menuButton = document.querySelector('.menu-toggle');
   const themeButton = document.querySelector('.theme-toggle');
   const themeColor = document.querySelector('meta[name="theme-color"]');
   const navigation = document.querySelector('.site-nav');
-  const menuLabel = document.querySelector('.menu-toggle__label');
   const progressBar = document.querySelector('.scroll-progress span');
-  const heroTitle = document.querySelector('#hero-title');
-  const cursorRevealTargets = [...document.querySelectorAll('#hero-title, [data-cursor-text]')];
+  const cursorRevealTargets = [...document.querySelectorAll('[data-cursor-text]')];
 
 
   function setupCustomCursor() {
@@ -57,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateTarget(event) {
       targetX = event.clientX;
       targetY = event.clientY;
-      const nextRevealTarget = event.target.closest('#hero-title, [data-cursor-text]');
+      const nextRevealTarget = event.target.closest('[data-cursor-text]');
       if (nextRevealTarget !== activeRevealTarget) {
         cursorRevealTargets.forEach((target) => target.classList.remove('is-cursor-active'));
         activeRevealTarget = nextRevealTarget;
@@ -84,6 +81,118 @@ document.addEventListener('DOMContentLoaded', () => {
 
   setupCustomCursor();
 
+  function setupSpotlight() {
+    const container = document.getElementById('nmw');
+    if (!container) return;
+
+    let isHovering = false;
+    let lastInteraction = 0;
+    let animId = null;
+    let isVisible = false;
+    const INACTIVE_DELAY = 1800;
+
+    function updateRadius() {
+      const isMobile = window.innerWidth <= 680;
+      const r = isMobile ? '65px' : '90px';
+      container.style.setProperty('--r', r);
+    }
+    updateRadius();
+    window.addEventListener('resize', updateRadius, { passive: true });
+
+    function onPointerMove(e) {
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      container.style.setProperty('--x', `${x.toFixed(1)}px`);
+      container.style.setProperty('--y', `${y.toFixed(1)}px`);
+      lastInteraction = performance.now();
+      isHovering = true;
+    }
+
+    const heroZone = container.closest('.hero__composition') || container;
+
+    heroZone.addEventListener('pointermove', onPointerMove, { passive: true });
+    heroZone.addEventListener('pointerenter', (e) => {
+      onPointerMove(e);
+      isHovering = true;
+      lastInteraction = performance.now();
+    });
+    heroZone.addEventListener('pointerleave', () => {
+      isHovering = false;
+      lastInteraction = performance.now();
+    });
+
+    heroZone.addEventListener('touchmove', (e) => {
+      if (e.touches && e.touches[0]) {
+        const touch = e.touches[0];
+        const rect = container.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        container.style.setProperty('--x', `${x.toFixed(1)}px`);
+        container.style.setProperty('--y', `${y.toFixed(1)}px`);
+        lastInteraction = performance.now();
+        isHovering = true;
+      }
+    }, { passive: true });
+
+    heroZone.addEventListener('touchend', () => {
+      isHovering = false;
+      lastInteraction = performance.now();
+    }, { passive: true });
+
+    function animate(timestamp) {
+      if (!isVisible) return;
+
+      const timeSinceInteraction = performance.now() - lastInteraction;
+      const shouldAnimateAutonomously = !isHovering || timeSinceInteraction > INACTIVE_DELAY;
+
+      if (shouldAnimateAutonomously && !reduceMotion.matches) {
+        const rect = container.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+
+        if (width > 0 && height > 0) {
+          const t = timestamp * 0.0016;
+          const xPercent = 0.5 + 0.42 * Math.sin(t);
+          const yPercent = 0.5 + 0.32 * Math.sin(t * 1.7);
+
+          container.style.setProperty('--x', `${(xPercent * width).toFixed(1)}px`);
+          container.style.setProperty('--y', `${(yPercent * height).toFixed(1)}px`);
+        }
+      }
+
+      animId = requestAnimationFrame(animate);
+    }
+
+    function startAnimation() {
+      if (!animId) {
+        animId = requestAnimationFrame(animate);
+      }
+    }
+
+    function stopAnimation() {
+      if (animId) {
+        cancelAnimationFrame(animId);
+        animId = null;
+      }
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        isVisible = entry.isIntersecting;
+        if (isVisible) {
+          startAnimation();
+        } else {
+          stopAnimation();
+        }
+      });
+    }, { threshold: 0.05 });
+
+    observer.observe(container);
+  }
+
+  setupSpotlight();
+
   function setTheme(theme, persist = true) {
     const dark = theme === 'dark';
     if (dark) document.documentElement.dataset.theme = 'dark';
@@ -101,16 +210,54 @@ document.addEventListener('DOMContentLoaded', () => {
     setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
   });
 
-  function setMenu(open) {
-    menuButton.setAttribute('aria-expanded', String(open));
-    navigation.classList.toggle('is-open', open);
-    document.body.classList.toggle('menu-open', open);
-    menuLabel.textContent = open ? 'Fechar' : 'Menu';
+  function setupBottomNavHighlight() {
+    const bottomNav = document.querySelector('.bottom-nav');
+    if (!bottomNav) return;
+
+    const navLinks = bottomNav.querySelectorAll('a');
+    const sections = [...navLinks].map((link) => {
+      const id = link.getAttribute('href').slice(1);
+      return document.getElementById(id);
+    }).filter(Boolean);
+
+    const mobileQuery = window.matchMedia('(max-width: 768px)');
+
+    function updateActiveLink() {
+      if (!mobileQuery.matches) return;
+      const scrollPos = window.scrollY + window.innerHeight * 0.4;
+      const isAtBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 60;
+      let currentSectionId = '';
+
+      if (isAtBottom) {
+        currentSectionId = 'contato';
+      } else {
+        for (let i = sections.length - 1; i >= 0; i--) {
+          const section = sections[i];
+          if (section.offsetTop <= scrollPos) {
+            currentSectionId = section.id;
+            break;
+          }
+        }
+      }
+
+      navLinks.forEach((link) => {
+        const targetId = link.getAttribute('href').slice(1);
+        link.classList.toggle('is-active', targetId === currentSectionId);
+      });
+    }
+
+    navLinks.forEach((link) => {
+      link.addEventListener('click', () => {
+        navLinks.forEach((l) => l.classList.remove('is-active'));
+        link.classList.add('is-active');
+      });
+    });
+
+    window.addEventListener('scroll', updateActiveLink, { passive: true });
+    updateActiveLink();
   }
 
-  menuButton.addEventListener('click', () => setMenu(menuButton.getAttribute('aria-expanded') !== 'true'));
-  navigation.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => setMenu(false)));
-  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setMenu(false); });
+  setupBottomNavHighlight();
 
   function updateProgress() {
     const available = document.documentElement.scrollHeight - window.innerHeight;
@@ -128,6 +275,223 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
 
   document.querySelectorAll('.reveal').forEach((element) => observer.observe(element));
+
+  function setupMobileStackAnimation() {
+    const grupoLinguagens = document.getElementById('grupo-linguagens');
+    const grupoFrameworks = document.getElementById('grupo-frameworks');
+    const grupoFerramentas = document.getElementById('grupo-ferramentas');
+    const secaoContato = document.getElementById('contato');
+
+    if (!grupoLinguagens || !grupoFrameworks || !grupoFerramentas) return;
+
+    const mobileQuery = window.matchMedia('(max-width: 768px)');
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    function activateLinguagens() {
+      if (!grupoLinguagens.classList.contains('is-active')) {
+        grupoLinguagens.classList.add('is-active');
+      }
+    }
+
+    function activateFrameworks() {
+      activateLinguagens();
+      if (!grupoFrameworks.classList.contains('is-active')) {
+        grupoFrameworks.classList.add('is-active');
+      }
+    }
+
+    function activateFerramentas() {
+      activateFrameworks();
+      if (!grupoFerramentas.classList.contains('is-active')) {
+        grupoFerramentas.classList.add('is-active');
+      }
+    }
+
+    function isAllActive() {
+      return grupoLinguagens.classList.contains('is-active') &&
+             grupoFrameworks.classList.contains('is-active') &&
+             grupoFerramentas.classList.contains('is-active');
+    }
+
+    // Se preferir movimento reduzido, ativa todos os grupos de imediato sem animação
+    if (motionQuery.matches) {
+      activateFerramentas();
+      return;
+    }
+
+    // IntersectionObserver com rootMargin ajustada:
+    // 2º Momento: Quando 'Frameworks e Estilo' atinge ~35% da base da tela -> ativa Linguagens
+    const observerFrameworks = new IntersectionObserver((entries) => {
+      if (!mobileQuery.matches) return;
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          activateLinguagens();
+          observerFrameworks.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -35% 0px', threshold: 0 });
+
+    // 3º Momento: Quando 'Ferramentas' começa a surgir na tela -> ativa Frameworks
+    const observerFerramentas = new IntersectionObserver((entries) => {
+      if (!mobileQuery.matches) return;
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          activateFrameworks();
+          observerFerramentas.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -25% 0px', threshold: 0 });
+
+    // 4º Momento: Quando o usuário avança para 'Contato' -> ativa Ferramentas
+    let observerContato = null;
+    if (secaoContato) {
+      observerContato = new IntersectionObserver((entries) => {
+        if (!mobileQuery.matches) return;
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            activateFerramentas();
+            observerContato.unobserve(entry.target);
+          }
+        });
+      }, { rootMargin: '0px 0px -15% 0px', threshold: 0 });
+      observerContato.observe(secaoContato);
+    }
+
+    observerFrameworks.observe(grupoFrameworks);
+    observerFerramentas.observe(grupoFerramentas);
+
+    // Monitoramento leve de scroll para precisão contínua no mobile
+    let ticking = false;
+    function checkScroll() {
+      if (!mobileQuery.matches || isAllActive()) return;
+
+      const vh = window.innerHeight;
+
+      // Frameworks atinge ~35% da base da tela (top <= 65% da altura da tela) -> Linguagens ganha cor
+      if (!grupoLinguagens.classList.contains('is-active')) {
+        const rectFw = grupoFrameworks.getBoundingClientRect();
+        if (rectFw.top <= vh * 0.65) {
+          activateLinguagens();
+        }
+      }
+
+      // Ferramentas começa a surgir na tela (top <= 75% da tela) -> Frameworks ganha cor
+      if (!grupoFrameworks.classList.contains('is-active')) {
+        const rectFer = grupoFerramentas.getBoundingClientRect();
+        if (rectFer.top <= vh * 0.75) {
+          activateFrameworks();
+        }
+      }
+
+      // Seção Contato surge na visão (top <= 85% da tela) -> Ferramentas ganha cor
+      if (secaoContato && !grupoFerramentas.classList.contains('is-active')) {
+        const rectCt = secaoContato.getBoundingClientRect();
+        if (rectCt.top <= vh * 0.85) {
+          activateFerramentas();
+        }
+      }
+    }
+
+    window.addEventListener('scroll', () => {
+      if (mobileQuery.matches && !isAllActive() && !ticking) {
+        ticking = true;
+        requestAnimationFrame(() => {
+          checkScroll();
+          ticking = false;
+        });
+      }
+    }, { passive: true });
+
+    // Verificação inicial caso já esteja scrollado na seção
+    if (mobileQuery.matches) {
+      checkScroll();
+    }
+
+    mobileQuery.addEventListener('change', (e) => {
+      if (e.matches) {
+        checkScroll();
+      }
+    });
+  }
+
+  setupMobileStackAnimation();
+
+  function setupMobileProjectFocus() {
+    const projects = [...document.querySelectorAll('.project')];
+    if (!projects.length) return;
+
+    const mobileQuery = window.matchMedia('(max-width: 768px)');
+    let activeCard = null;
+
+    function updateActiveCard() {
+      if (!mobileQuery.matches) {
+        if (activeCard) {
+          activeCard.classList.remove('is-focused');
+          activeCard = null;
+        }
+        return;
+      }
+
+      const viewportCenter = window.innerHeight / 2;
+      let closestCard = null;
+      let minDistance = Infinity;
+
+      projects.forEach((card) => {
+        const rect = card.getBoundingClientRect();
+        if (rect.bottom > window.innerHeight * 0.25 && rect.top < window.innerHeight * 0.75) {
+          const cardCenter = rect.top + rect.height / 2;
+          const dist = Math.abs(cardCenter - viewportCenter);
+          if (dist < minDistance) {
+            minDistance = dist;
+            closestCard = card;
+          }
+        }
+      });
+
+      if (closestCard !== activeCard) {
+        if (activeCard) {
+          activeCard.classList.remove('is-focused');
+        }
+        if (closestCard) {
+          closestCard.classList.add('is-focused');
+        }
+        activeCard = closestCard;
+      }
+    }
+
+    const observer = new IntersectionObserver(() => {
+      if (mobileQuery.matches) {
+        updateActiveCard();
+      }
+    }, {
+      rootMargin: '-25% 0px -25% 0px',
+      threshold: [0, 0.25, 0.5, 0.75, 1]
+    });
+
+    projects.forEach((card) => observer.observe(card));
+
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+      if (mobileQuery.matches && !ticking) {
+        ticking = true;
+        requestAnimationFrame(() => {
+          updateActiveCard();
+          ticking = false;
+        });
+      }
+    }, { passive: true });
+
+    window.addEventListener('resize', () => {
+      if (!mobileQuery.matches && activeCard) {
+        activeCard.classList.remove('is-focused');
+        activeCard = null;
+      } else if (mobileQuery.matches) {
+        updateActiveCard();
+      }
+    }, { passive: true });
+  }
+
+  setupMobileProjectFocus();
 
   function finishIntro(preservedHeroRole = null) {
     if (preservedHeroRole) {
