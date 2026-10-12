@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/curriculo.pdf",
+      "destination": "/public/curriculo.pdf"
+    }
+  ]
+}
+
